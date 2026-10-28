@@ -1,139 +1,73 @@
-# RUST-VGA: Benchmark Dataset for Rust Vulnerability Detection
-This repository contains the code and the dataset used in the paper **"LLM-Based Data Generation and Augmentation for
-Rust Vulnerability Detection**".
+# RUST-VGA: An LLM-Generated, Test-Validated Benchmark for Rust Vulnerability Detection
 
-RUST-VGA is a large-scale, executable benchmark for **binary vulnerability detection in Rust**, built to support training and evaluation of ML/LLM-based detectors.
+Code and data for **"LLM-Based Data Generation and Augmentation for Rust Vulnerability Detection"** (IEEE COMPSAC 2026).
 
-- **8,480 executable Rust programs**
-- **53 CWE categories**
-- Paired **vulnerable** and **fixed** variants
-- Each sample includes **tests** used for validation
+RUST-VGA is a large-scale, executable benchmark for binary vulnerability detection in Rust, built to train and evaluate ML- and LLM-based detectors where real-world labeled Rust data is scarce.
 
-## What’s in this repository
+- **8,480 executable Rust programs** as paired vulnerable/fixed variants
+- **53 CWE categories**, seeded from 122 real-world Rust CVEs
+- Every pair ships with a **test that fails on the vulnerable version and passes on the fixed one**
+- Generated with o3-mini and Qwen2.5-Coder; validated by compile + test, with optional AddressSanitizer checks
 
-This repo contains:
-- The full RUST-VGA dataset (generated + augmented)
-- Generation and augmentation code
-- Validation scripts (compile + test; optional ASan checks)
+## Repository layout
 
----
+| Path | Contents |
+| --- | --- |
+| `Dataset/` | The benchmark, organized by generating model → stage → CWE → pair |
+| `Data_Generation/` | Prompts and scripts for LLM generation of seed vulnerable/fixed pairs |
+| `Data_Augmentation/` | Augmentation strategies A1–A3, oracle runners, and cleaning scripts for fine-tuning and evaluation |
+| `Dataset Curation/` | Curation of the 122 source CVE samples |
+| `Asan_box/` | AddressSanitizer harness |
+| `Rudra/` | Scripts for comparison against the Rudra static analyzer |
+| `LLaMA-Factory/` | Fine-tuning configuration |
 
-## Dataset overview
+Each sample directory contains:
 
-Each sample is a Rust mini-project with:
-- `vulnerable.rs` and `fixed.rs` (paired variants)
-- `demo_test.rs` (test that should **fail** on vulnerable and **pass** on fixed)
+| File | Purpose |
+| --- | --- |
+| `vulnerable.rs` / `fixed.rs` | The paired program variants |
+| `demo_test.rs` | Oracle test: fails on `vulnerable.rs`, passes on `fixed.rs` |
+| `vulnerable_diff.rs` / `fixed_diff.rs` | Diff-based context used by augmentation |
+| `vuldesc.txt` / `fixeddesc.txt` | Natural-language description of the vulnerability and the fix |
+| `lineno.js` | Line numbers of the vulnerable region |
 
+## How the dataset is built
 
-## Pipeline summary (from the paper)
+**1. Data generation.** An LLM produces a vulnerable/fixed pair plus a test from a CWE description and a seed CVE. A pair is kept only if both versions compile and the test fails on the vulnerable version and passes on the fixed one.
 
-RUST-VGA is produced in two stages:
+**2. Data augmentation.** Each validated pair is expanded with three strategies, each re-validated by the same oracle:
 
-1) **Data Generation**
-- LLM generates a vulnerable/fixed pair + a test
-- We keep a pair only if:
-  - both versions compile
-  - test fails on vulnerable and passes on fixed
+- **A1 — test-driven bug injection and repair:** inject a new bug, then repair it
+- **A2 — vulnerability-preserving paraphrase:** restructure the code while keeping the bug
+- **A3 — contextual completion:** complete new code from diff-based context
 
-2) **Data Augmentation**
-We generate additional variants using three strategies:
-- **A1**: test-driven bug injection and repair
-- **A2**: vulnerability-specific paraphrasing (structure changes, bug preserved)
-- **A3**: contextual completion using diff-based context
+## Quick start
 
-### Requirements
-- Rust toolchain (recommended: `rustc 1.89.0` or newer)
-- Python 3.x
+Requirements: Rust toolchain (`rustc` 1.89 or newer) and Python 3.
 
-### Validate one sample (compile + test)
-Example (replace with your actual script/paths):
 ```bash
-cd Dataset/o3_mini/data_generation/CWE-190/pair1
-cargo test
+git clone https://github.com/codeopenforall/RUSTVGA
+cd RUSTVGA/Dataset/o3_mini/data_generation/CWE-190/pair1
+cargo test          # should fail on vulnerable.rs, pass on fixed.rs
 ```
 
-##
+## Source CVE distribution
 
-The CWE Distribution of source data used the creation of RUST-VGA. It contain 122 samples.
+The 122 seed samples cover 53 CWEs; the largest groups are CWE-416 (9), CWE-125 (7), CWE-400 (7), CWE-787 (6), CWE-079 (5), and CWE-119 (5). The full per-CWE table is in [`CWE_DISTRIBUTION.md`](CWE_DISTRIBUTION.md).
 
-| CWE     | Count |
-| ------- | ----: |
-| CWE-022 |     3 |
-| CWE-059 |     2 |
-| CWE-079 |     5 |
-| CWE-088 |     1 |
-| CWE-113 |     1 |
-| CWE-119 |     5 |
-| CWE-125 |     7 |
-| CWE-131 |     1 |
-| CWE-134 |     1 |
-| CWE-190 |     4 |
-| CWE-191 |     1 |
-| CWE-193 |     2 |
-| CWE-20  |     4 |
-| CWE-200 |     1 |
-| CWE-203 |     3 |
-| CWE-248 |     1 |
-| CWE-252 |     2 |
-| CWE-253 |     1 |
-| CWE-276 |     1 |
-| CWE-285 |     1 |
-| CWE-287 |     2 |
-| CWE-288 |     1 |
-| CWE-311 |     1 |
-| CWE-346 |     1 |
-| CWE-347 |     3 |
-| CWE-362 |     1 |
-| CWE-369 |     1 |
-| CWE-400 |     7 |
-| CWE-415 |     2 |
-| CWE-416 |     9 |
-| CWE-426 |     1 |
-| CWE-427 |     2 |
-| CWE-444 |     2 |
-| CWE-475 |     1 |
-| CWE-611 |     1 |
-| CWE-617 |     1 |
-| CWE-662 |     1 |
-| CWE-665 |     1 |
-| CWE-668 |     1 |
-| CWE-670 |     2 |
-| CWE-674 |     2 |
-| CWE-682 |     3 |
-| CWE-701 |     1 |
-| CWE-703 |     1 |
-| CWE-754 |     2 |
-| CWE-755 |     2 |
-| CWE-758 |     1 |
-| CWE-770 |     2 |
-| CWE-787 |     6 |
-| CWE-824 |     1 |
-| CWE-835 |     1 |
-| CWE-863 |     2 |
-| CWE-908 |     2 |
+## Responsible use
 
+This dataset contains intentionally vulnerable code for research. Do not deploy any sample in production.
 
+## Citation
 
-## Usage
-
-To use this dataset, clone the repository and navigate to the desired directory:
-
-## Security and responsible use
-
-This dataset contains intentionally vulnerable code for research purposes.
-Do not deploy these samples in production environments.
-
-## Citation:
-
-If you use this dataset, please cite:
-
-```bash
+```bibtex
 @inproceedings{khan2026llm,
-  title={LLM-Based Data Generation and Augmentation for Rust Vulnerability Detection},
-  author={Khan, Irfan Ali and Luo, Yu and Xu, Weifeng and Xu, Dianxiang},
-  booktitle={2026 IEEE 50th Annual Computers, Software, and Applications Conference (COMPSAC)},
-  pages={711--720},
-  year={2026},
-  organization={IEEE}
+  title     = {LLM-Based Data Generation and Augmentation for Rust Vulnerability Detection},
+  author    = {Khan, Irfan Ali and Luo, Yu and Xu, Weifeng and Xu, Dianxiang},
+  booktitle = {2026 IEEE 50th Annual Computers, Software, and Applications Conference (COMPSAC)},
+  pages     = {711--720},
+  year      = {2026},
+  organization = {IEEE}
 }
 ```
